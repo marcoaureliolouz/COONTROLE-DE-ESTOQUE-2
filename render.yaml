@@ -2,15 +2,15 @@ databases:
   - name: estoque-db
     databaseName: estoque
     user: app
-    plan: starter
-    diskSizeGB: 10
+    plan: free
+    diskSizeGB: 1
     postgresMajorVersion: "17"
 
 services:
   - type: web
     name: estoque-backend
     runtime: docker
-    plan: starter
+    plan: free
     dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
     envVars:
@@ -26,8 +26,4 @@ services:
     name: estoque-frontend
     runtime: static
     staticPublishPath: frontend
-    # (opcional) se quiser usar /api/... no frontend em vez de URL completa do backend:
-    # routes:
-    #   - type: rewrite
-    #     source: /api/(.*)
-    #     destination: https://SEU-BACKEND.onrender.com/$1
+
