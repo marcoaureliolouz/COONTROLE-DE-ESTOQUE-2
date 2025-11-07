@@ -1,17 +1,15 @@
 databases:
   - name: estoque-db
-    plan: free
+    plan: free          # para banco pode manter "free"
     databaseName: estoque
     user: app
-    # Não defina diskSizeGB no plano free
-    # postgresMajorVersion é opcional; se quiser, pode manter:
-    # postgresMajorVersion: "17"
+    # Não definir diskSizeGB no plano free
+    # postgresMajorVersion: "17"  # opcional
 
 services:
   - type: web
     name: estoque-backend
     runtime: docker
-    plan: free
     dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
     envVars:
@@ -26,10 +24,10 @@ services:
   - type: web
     name: estoque-frontend
     runtime: static
-    plan: free
     staticPublishPath: frontend
-    # (Opcional) Se quiser usar /api/... no frontend em vez da URL completa do backend:
+    # (Opcional) se quiser usar /api/... em vez da URL completa do backend:
     # routes:
     #   - type: rewrite
     #     source: /api/(.*)
     #     destination: https://SEU-BACKEND.onrender.com/$1
+
