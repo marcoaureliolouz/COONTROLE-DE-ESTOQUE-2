@@ -16,26 +16,23 @@ services:
         value: America/Sao_Paulo
     healthCheckPath: /docs
 
-  - type: static
+  - type: static_site
     name: estoque-frontend
-    env: static
     buildCommand: ""
     staticPublishPath: frontend
-    routes:
-      - type: rewrite
-        source: /api/(.*)
-        destination: https://RENDER-BACKEND-URL/$1
+    # DICA: use o config.js do frontend para apontar a URL do backend.
+    # Se quiser usar rewrite, veja "Opção B" abaixo.
 
   - type: pserv
     name: estoque-db
     env: docker
     plan: starter
+    image: postgres:16
     dockerCommand: ""
     disk:
       name: estoque-db-disk
       mountPath: /var/lib/postgresql/data
       sizeGB: 10
-    image: postgres:16
     envVars:
       - key: POSTGRES_USER
         value: app
