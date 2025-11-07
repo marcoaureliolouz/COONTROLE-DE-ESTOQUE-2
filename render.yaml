@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: estoque-backend
+    env: docker
+    plan: starter
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromService:
+          name: estoque-db
+          type: pserv
+          property: connectionString
+      - key: TZ
+        value: America/Sao_Paulo
+    healthCheckPath: /docs
+
+  - type: static
+    name: estoque-frontend
+    env: static
+    buildCommand: ""
+    staticPublishPath: frontend
+    routes:
+      - type: rewrite
+        source: /api/(.*)
+        destination: https://RENDER-BACKEND-URL/$1
+
+  - type: pserv
+    name: estoque-db
+    env: docker
+    plan: starter
+    dockerCommand: ""
+    disk:
+      name: estoque-db-disk
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 10
+    image: postgres:16
+    envVars:
+      - key: POSTGRES_USER
+        value: app
+      - key: POSTGRES_PASSWORD
+        value: app
+      - key: POSTGRES_DB
+        value: estoque

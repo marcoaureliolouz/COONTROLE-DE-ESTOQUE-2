@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Estoque de Supermercado</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0b1020" />
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/config.js"></script>
+  <style>body{background:#0b1020;color:#e6e9f2} .card{background:#121836;border:1px solid #1f2a57;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}</style>
+</head>
+<body class="min-h-screen">
+  <div class="max-w-6xl mx-auto p-6 space-y-6">
+    <h1 class="text-3xl font-bold">📦 Controle de Estoque – Supermercado</h1>
+
+    <section class="grid md:grid-cols-3 gap-4">
+      <div class="card p-4">
+        <h2 class="font-semibold mb-2">Importar XML (NF-e)</h2>
+        <input id="xml" type="file" accept=".xml" class="block mb-3" />
+        <button class="px-3 py-2 rounded bg-blue-600" onclick="uploadXML()">Enviar XML</button>
+        <p id="xmlMsg" class="mt-2 text-sm"></p>
+      </div>
+      <div class="card p-4">
+        <h2 class="font-semibold mb-2">Importar Excel/CSV</h2>
+        <input id="excel" type="file" accept=".xlsx,.xls,.csv" class="block mb-3" />
+        <button class="px-3 py-2 rounded bg-blue-600" onclick="uploadExcel()">Enviar Planilha</button>
+        <p id="xlMsg" class="mt-2 text-sm"></p>
+      </div>
+      <div class="card p-4">
+        <h2 class="font-semibold mb-2">Lançamento Manual</h2>
+        <form id="fMov" class="space-y-2" onsubmit="return lancarManual(event)">
+          <input class="w-full p-2 rounded bg-slate-800" placeholder="ID do produto" id="pId" required />
+          <select class="w-full p-2 rounded bg-slate-800" id="tipo">
+            <option>ENTRADA</option>
+            <option>SAIDA</option>
+            <option>AJUSTE</option>
+          </select>
+          <input class="w-full p-2 rounded bg-slate-800" placeholder="Quantidade" id="qtd" required />
+          <input class="w-full p-2 rounded bg-slate-800" placeholder="Preço unitário (se entrada)" id="preco" />
+          <button class="px-3 py-2 rounded bg-blue-600">Lançar</button>
+        </form>
+        <p id="movMsg" class="mt-2 text-sm"></p>
+      </div>
+    </section>
+
+    <section class="card p-4">
+      <div class="flex items-center justify-between">
+        <h2 class="font-semibold">Produtos</h2>
+        <button class="px-3 py-2 rounded bg-green-600" onclick="abrirCadastro()">+ Cadastrar</button>
+      </div>
+      <div class="overflow-x-auto mt-3">
+        <table class="min-w-full text-sm">
+          <thead class="text-left text-slate-300">
+            <tr>
+              <th class="p-2">ID</th>
+              <th class="p-2">Código</th>
+              <th class="p-2">Descrição</th>
+              <th class="p-2">Estoque</th>
+              <th class="p-2">Preço Médio</th>
+              <th class="p-2">Sugestão</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="grid md:grid-cols-3 gap-4">
+      <div class="card p-4">
+        <h2 class="font-semibold mb-2">📈 Giro (30 dias)</h2>
+        <pre id="giro" class="text-xs"></pre>
+      </div>
+      <div class="card p-4">
+        <h2 class="font-semibold mb-2">🏷️ Curva ABC (90 dias)</h2>
+        <div id="abc" class="text-xs space-y-1 max-h-60 overflow-auto"></div>
+      </div>
+      <div class="card p-4">
+        <h2 class="font-semibold mb-2">💰 Capital de Giro</h2>
+        <pre id="cdg" class="text-xs"></pre>
+      </div>
+    </section>
+  </div>
+
+  <div id="modal" class="hidden fixed inset-0 bg-black/60 grid place-items-center">
+    <div class="card p-4 w-[420px]">
+      <h3 class="font-semibold mb-2">Cadastrar Produto</h3>
+      <form id="fProd" class="space-y-2" onsubmit="return cadastrar(event)">
+        <input id="pcod" class="w-full p-2 rounded bg-slate-800" placeholder="Código (SKU)" />
+        <input id="pean" class="w-full p-2 rounded bg-slate-800" placeholder="EAN" />
+        <input id="pdesc" class="w-full p-2 rounded bg-slate-800" placeholder="Descrição" required />
+        <input id="pncm" class="w-full p-2 rounded bg-slate-800" placeholder="NCM" />
+        <input id="pun" class="w-full p-2 rounded bg-slate-800" placeholder="Unidade (ex: UN)" value="UN" />
+        <input id="plead" class="w-full p-2 rounded bg-slate-800" placeholder="Lead time (dias)" value="7" />
+        <input id="pfs" class="w-full p-2 rounded bg-slate-800" placeholder="Fator de segurança" value="1.2" />
+        <div class="flex gap-2 justify-end">
+          <button type="button" class="px-3 py-2 rounded" onclick="fechar()">Cancelar</button>
+          <button class="px-3 py-2 rounded bg-green-600">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const API = window.API_BASE_URL || (location.origin.replace(':8080', ':8000'));
+    async function carregar() {
+      const prods = await axios.get(API + '/produtos');
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = '';
+      for (const p of prods.data) {
+        const sug = await axios.get(API + '/sugestoes-compra/' + p.id);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="p-2">${p.id}</td>
+          <td class="p-2">${p.codigo ?? ''}</td>
+          <td class="p-2">${p.descricao}</td>
+          <td class="p-2">${Number(p.estoque_atual).toFixed(2)}</td>
+          <td class="p-2">R$ ${Number(p.preco_medio).toFixed(2)}</td>
+          <td class="p-2">Min/Max: ${sug.data.estoque_min} / ${sug.data.estoque_max}<br/>Sugestão: <b>${sug.data.sugestao_compra}</b></td>
+        `;
+        tbody.appendChild(tr);
+      }
+      const giro = await axios.get(API + '/giro');
+      document.getElementById('giro').textContent = JSON.stringify(giro.data, null, 2);
+      const abc = await axios.get(API + '/abc');
+      document.getElementById('abc').innerHTML = abc.data.slice(0,50).map(i=>`<div>${i.classe} — ${i.descricao} — R$ ${i.valor.toFixed(2)} (${i.perc}% | ${i.acumulado}%)</div>`).join('');
+      const cdg = await axios.get(API + '/capital-de-giro');
+      document.getElementById('cdg').textContent = JSON.stringify(cdg.data, null, 2);
+    }
+    carregar();
+
+    async function uploadXML(){
+      const f = document.getElementById('xml').files[0];
+      if(!f){ return; }
+      const fd = new FormData();
+      fd.append('file', f);
+      const r = await axios.post(API + '/import/xml-nfe', fd, { headers: {'Content-Type': 'multipart/form-data'} });
+      document.getElementById('xmlMsg').textContent = 'Processados: ' + r.data.itens_processados;
+      carregar();
+    }
+
+    async function uploadExcel(){
+      const f = document.getElementById('excel').files[0];
+      if(!f){ return; }
+      const fd = new FormData();
+      fd.append('file', f);
+      const r = await axios.post(API + '/import/excel', fd, { headers: {'Content-Type': 'multipart/form-data'} });
+      document.getElementById('xlMsg').textContent = 'Linhas: ' + r.data.linhas_processadas;
+      carregar();
+    }
+
+    function abrirCadastro(){ document.getElementById('modal').classList.remove('hidden'); }
+    function fechar(){ document.getElementById('modal').classList.add('hidden'); }
+
+    async function cadastrar(e){
+      e.preventDefault();
+      const body = {
+        codigo: document.getElementById('pcod').value || null,
+        ean: document.getElementById('pean').value || null,
+        descricao: document.getElementById('pdesc').value,
+        ncm: document.getElementById('pncm').value || null,
+        unidade: document.getElementById('pun').value || 'UN',
+        lead_time_dias: Number(document.getElementById('plead').value || 7),
+        fator_seguranca: Number(document.getElementById('pfs').value || 1.2),
+      };
+      await axios.post(API + '/produtos', body);
+      fechar();
+      carregar();
+    }
+
+    async function lancarManual(e){
+      e.preventDefault();
+      const body = {
+        produto_id: Number(document.getElementById('pId').value),
+        tipo: document.getElementById('tipo').value,
+        quantidade: Number(document.getElementById('qtd').value),
+        preco_unit: Number(document.getElementById('preco').value || 0),
+        origem: 'MANUAL',
+      };
+      await axios.post(API + '/movimentos', body);
+      document.getElementById('movMsg').textContent = 'Lançado com sucesso!';
+      carregar();
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', ()=>{
+        navigator.serviceWorker.register('/sw.js');
+      });
+    }
+  </script>
+</body>
+</html>
