@@ -1,42 +1,33 @@
+databases:
+  - name: estoque-db
+    databaseName: estoque
+    user: app
+    plan: starter
+    diskSizeGB: 10
+    postgresMajorVersion: "17"
+
 services:
   - type: web
     name: estoque-backend
-    env: docker
+    runtime: docker
     plan: starter
     dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
-    autoDeploy: true
     envVars:
       - key: DATABASE_URL
-        fromService:
+        fromDatabase:
           name: estoque-db
-          type: pserv
           property: connectionString
       - key: TZ
         value: America/Sao_Paulo
     healthCheckPath: /docs
 
-  - type: static_site
+  - type: web
     name: estoque-frontend
-    buildCommand: ""
+    runtime: static
     staticPublishPath: frontend
-    # DICA: use o config.js do frontend para apontar a URL do backend.
-    # Se quiser usar rewrite, veja "Opção B" abaixo.
-
-  - type: pserv
-    name: estoque-db
-    env: docker
-    plan: starter
-    image: postgres:16
-    dockerCommand: ""
-    disk:
-      name: estoque-db-disk
-      mountPath: /var/lib/postgresql/data
-      sizeGB: 10
-    envVars:
-      - key: POSTGRES_USER
-        value: app
-      - key: POSTGRES_PASSWORD
-        value: app
-      - key: POSTGRES_DB
-        value: estoque
+    # (opcional) se quiser usar /api/... no frontend em vez de URL completa do backend:
+    # routes:
+    #   - type: rewrite
+    #     source: /api/(.*)
+    #     destination: https://SEU-BACKEND.onrender.com/$1
